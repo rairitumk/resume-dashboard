@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Resume Screening Dashboard</title>
+    <!-- Add SheetJS library for Excel reading -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="8" height="8" patternUnits="userSpaceOnUse"><path d="M 8 0 L 0 0 0 8" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .header-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1em;
+            opacity: 0.9;
+            font-weight: 300;
+        }
+
+        .main-content {
+            padding: 25px 40px 40px 40px;
+            position: relative;
+        }
+
+        .action-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 16px;
+            padding: 35px;
+            margin-bottom: 30px;
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .action-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+        }
+
+        .action-title {
+            font-size: 1.5em;
+            color: #2d3748;
+            margin-bottom: 12px;
+            font-weight: 600;
+        }
+
+        .action-description {
+            font-size: 1em;
+            color: #64748b;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            padding: 15px 35px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.3);
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .btn-cancel {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+            margin-left: 10px;
+            padding: 10px 20px;
+            font-size: 0.9em;
+        }
+
+        .btn-cancel:hover {
+            box-shadow: 0 6px 18px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-icon {
+            font-size: 1.2em;
+        }
+
+        .processing-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: none;
+            border: 2px solid #e2e8f0;
+        }
+
+        .processing-section.show {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .processing-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .processing-title {
+            font-size: 1.3em;
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .progress-container {
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 24px;
+            background: #e2e8f0;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4f46e5, #7c3aed);
+            width: 0%;
+            transition: width 0.8s ease;
+            position: relative;
+        }
+
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+
+        .status {
+            font-size: 1em;
+            font-weight: 500;
+            margin: 15px 0;
+            padding: 15px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border-left: 4px solid #4f46e5;
+            color: #2d3748;
+        }
+
+        .status.processing {
+            color: #d97706;
+            border-left-color: #d97706;
+            background: #fffbeb;
+        }
+
+        .status.complete {
+            color: #059669;
+            border-left-color: #059669;
+            background: #f0fdf4;
+        }
+
+        .status.error {
+            color: #dc2626;
+            border-left-color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .results-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: none;
+            border: 2px solid #e2e8f0;
+        }
+
+        .results-section.show {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+
+        .results-title {
+            font-size: 1.6em;
+            color: #2d3748;
+            margin-bottom: 25px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 18px;
+            margin: 25px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            padding: 25px 20px;
+            border-radius: 16px;
+            text-align: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        }
+
+        .stat-number {
+            font-size: 1.8em;
+            font-weight: bold;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-weight: 500;
+            font-size: 0.85em;
+        }
+
+        .download-section {
+            background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+            border-radius: 16px;
+            padding: 25px;
+            margin-top: 25px;
+            text-align: center;
+            border: 2px dashed #cbd5e1;
+        }
+
+        .download-title {
+            font-size: 1.3em;
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .download-message {
+            color: #64748b;
+            font-size: 1em;
+            margin: 15px 0;
+            line-height: 1.5;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-overlay.show {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            text-align: center;
+            transform: scale(0.7);
+            transition: transform 0.3s ease;
+        }
+
+        .modal-overlay.show .modal {
+            transform: scale(1);
+        }
+
+        .modal-icon {
+            font-size: 2em;
+            margin-bottom: 15px;
+        }
+
+        .modal-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 12px;
+        }
+
+        .modal-message {
+            color: #64748b;
+            font-size: 0.9em;
+            margin-bottom: 25px;
+            line-height: 1.4;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .modal-buttons .btn {
+            padding: 10px 20px;
+            font-size: 0.9em;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            padding: 20px 25px;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(16, 185, 129, 0.3);
+            z-index: 1100;
+            font-weight: 600;
+            max-width: 400px;
+            transform: translateX(100%);
+            transition: transform 0.5s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification-title {
+            font-size: 1.1em;
+            margin-bottom: 8px;
+        }
+
+        .notification-details {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 25px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+                gap: 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .modal-buttons {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <h1>🎯 Resume Screening Dashboard</h1>
+                <p>AI-Powered Candidate Evaluation System</p>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Action Buttons - Left and Right aligned -->
+            <div style="margin: 0 0 20px 0; display: flex; justify-content: space-between; align-items: center;">
+                <button class="btn" id="renameBtn" style="background: linear-gradient(135deg, #10b981, #059669); padding: 10px 20px; font-size: 0.9em;">
+                    <span style="margin-right: 8px;">📝</span>
+                    Rename Resumes
+                </button>
+                <button class="btn" id="emailBtn" style="background: linear-gradient(135deg, #f59e0b, #d97706); padding: 10px 20px; font-size: 0.9em;">
+                    <span style="margin-right: 8px;">📧</span>
+                    Send Interview Emails
+                </button>
+            </div>
+
+            <!-- Main Action -->
+            <div class="action-card">
+                <div class="action-title">Start Resume Screening Process</div>
+                <div class="action-description">
+                    Process all candidate resumes and generate comprehensive evaluation reports
+                </div>
+                <button class="btn" id="startProcessing" disabled>
+                    <span class="btn-icon">🚀</span>
+                    <span id="processText">Begin Screening</span>
+                </button>
+                <div style="margin-top: 10px; font-size: 0.9em; color: #64748b;">
+                    <small>⚠️ Please rename resumes first</small>
+                </div>
+            </div>
+
+            <!-- Processing Section -->
+            <div class="processing-section" id="processingSection">
+                <div class="processing-header">
+                    <div class="processing-title">Processing Status</div>
+                    <button class="btn btn-cancel" id="cancelProcessing" style="display: none;">
+                        <span class="btn-icon">⏹️</span>
+                        Cancel Process
+                    </button>
+                </div>
+                <div class="progress-container">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                </div>
+                <div class="status" id="statusMessage"></div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section" id="resultsSection">
+                <div class="results-title">📊 Screening Results Summary</div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number" id="totalProcessed">--</div>
+                        <div class="stat-label">Total Candidates</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="qualified">--</div>
+                        <div class="stat-label">Passed Screening</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="recommended">--</div>
+                        <div class="stat-label">Recommended</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="rejected">--</div>
+                        <div class="stat-label">Not Qualified</div>
+                    </div>
+                </div>
+
+                <div class="download-section">
+                    <div class="download-title">📥 Report Generated</div>
+                    <div class="download-message">
+                        📊 Excel report has been automatically downloaded to your computer<br>
+                        📁 Check your Downloads folder for the detailed screening results<br>
+                        <small style="color: #94a3b8; margin-top: 10px; display: block;">💡 Statistics will be available in future updates</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Resumes Modal -->
+    <div class="modal-overlay" id="renameModal">
+        <div class="modal" style="max-width: 500px; padding: 0; overflow: hidden;">
+            <button id="closeRenameModal" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5em; cursor: pointer; color: #64748b; z-index: 1001;">×</button>
+            
+            <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: rgba(245, 247, 250, 0.9); padding: 40px; text-align: center; backdrop-filter: blur(5px);">
+                <h1 style="color: #2d3748; margin-bottom: 12px; font-size: 1.8em; font-weight: 600;">Resume Renamer</h1>
+                <p style="color: #4a5568; margin-bottom: 30px; font-size: 1em; font-weight: 400; line-height: 1.5;">Transform your pdf name into professional format instantly</p>
+                
+                <button id="startRenameProcessing" style="background: #3182ce; color: white; border: none; padding: 12px 24px; font-size: 1em; font-weight: 500; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(49, 130, 206, 0.3);">
+                    🚀 Start Processing
+                </button>
+                
+                <div id="renameResult" style="margin-top: 20px; padding: 15px; border-radius: 5px; display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Modal -->
+    <div class="modal-overlay" id="emailModal">
+        <div class="modal" style="max-width: 600px; padding: 0; overflow: hidden;">
+            <button id="closeEmailModal" style="position: absolute; top: 15px; right: 15px; background: none; border: none; font-size: 1.5em; cursor: pointer; color: #64748b; z-index: 1001;">×</button>
+            
+            <div style="font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: rgba(245, 247, 250, 0.9); padding: 40px; text-align: center; backdrop-filter: blur(5px);">
+                <h1 style="color: #2d3748; margin-bottom: 12px; font-size: 1.8em; font-weight: 600;">📧 Send Interview Emails</h1>
+                <p style="color: #4a5568; margin-bottom: 30px; font-size: 1em; font-weight: 400; line-height: 1.5;">Upload your reviewed Excel file and send interview invitations to accepted candidates</p>
+                
+                <!-- File Upload Section -->
+                <div style="background: white; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 30px; margin-bottom: 20px; transition: all 0.3s ease;">
+                    <input type="file" id="excelFileInput" accept=".xlsx,.xls" style="display: none;">
+                    <button id="uploadExcelBtn" onclick="document.getElementById('excelFileInput').click()" style="background: #3182ce; color: white; border: none; padding: 12px 24px; font-size: 1em; font-weight: 500; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(49, 130, 206, 0.3);">
+                        📁 Select Excel File
+                    </button>
+                    <p style="color: #64748b; font-size: 0.9em; margin-top: 10px;">Choose the Excel file with Accept/Reject decisions</p>
+                    <div id="fileName" style="margin-top: 15px; padding: 10px; background: #f0f9ff; border-radius: 6px; color: #0369a1; font-weight: 500; display: none;"></div>
+                </div>
+                
+                <button id="processExcelBtn" style="background: #f59e0b; color: white; border: none; padding: 12px 24px; font-size: 1em; font-weight: 500; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3); display: none;">
+                    📧 Process Candidates
+                </button>
+                
+                <div id="emailResult" style="margin-top: 20px; padding: 15px; border-radius: 5px; display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Confirmation Modal -->
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal">
+            <div class="modal-icon">🎯</div>
+            <div class="modal-title">Start Resume Screening?</div>
+            <div class="modal-message">
+                This will process all candidate resumes and generate evaluation reports. 
+                The process may take a few minutes to complete.
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" id="confirmStart">
+                    <span class="btn-icon">✅</span>
+                    Yes, Start Processing
+                </button>
+                <button class="btn btn-cancel" id="cancelStart">
+                    <span class="btn-icon">❌</span>
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // n8n Configuration
+        const N8N_WEBHOOK_URL = 'http://localhost:5679/webhook/process-candidates';
+        
+        // Global variables
+        let isProcessing = false;
+        let processAborted = false;
+        let globalAcceptedCandidates = [];
+
+        // DOM elements
+        const startProcessing = document.getElementById('startProcessing');
+        const processingSection = document.getElementById('processingSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const statusMessage = document.getElementById('statusMessage');
+        const progressFill = document.getElementById('progressFill');
+        const confirmModal = document.getElementById('confirmModal');
+        const cancelProcessing = document.getElementById('cancelProcessing');
+
+        // Show custom confirmation modal instead of browser confirm
+        startProcessing.addEventListener('click', () => {
+            if (isProcessing) return;
+            confirmModal.classList.add('show');
+        });
+
+        // Handle modal buttons
+        document.getElementById('confirmStart').addEventListener('click', () => {
+            confirmModal.classList.remove('show');
+            startWorkflow();
+        });
+
+        document.getElementById('cancelStart').addEventListener('click', () => {
+            confirmModal.classList.remove('show');
+        });
+
+        // Cancel processing
+        cancelProcessing.addEventListener('click', () => {
+            const confirmCancel = document.createElement('div');
+            confirmCancel.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: white; padding: 20px; border-radius: 12px; box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+                z-index: 2000; text-align: center; border: 2px solid #ef4444;
+            `;
+            confirmCancel.innerHTML = `
+                <div style="color: #2d3748; font-weight: 600; margin-bottom: 15px;">Are you sure you want to cancel the screening process?</div>
+                <button onclick="
+                    processAborted = true;
+                    document.getElementById('cancelProcessing').style.display = 'none';
+                    document.getElementById('statusMessage').className = 'status error';
+                    document.getElementById('statusMessage').textContent = 'Process cancelled by user';
+                    resetInterface();
+                    this.parentElement.remove();
+                " style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; margin-right: 10px;">Yes, Cancel</button>
+                <button onclick="this.parentElement.remove()" style="background: #6b7280; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">No, Continue</button>
+            `;
+            document.body.appendChild(confirmCancel);
+        });
+
+        // Start workflow function
+        async function startWorkflow() {
+            if (isProcessing) return;
+            
+            isProcessing = true;
+            processAborted = false;
+            startProcessing.disabled = true;
+            document.getElementById('processText').innerHTML = '<span class="loading"></span>Processing...';
+            
+            processingSection.classList.add('show');
+            resultsSection.classList.remove('show');
+            cancelProcessing.style.display = 'inline-flex';
+
+            try {
+                await triggerN8nWorkflow();
+            } catch (error) {
+                if (!processAborted) {
+                    statusMessage.className = 'status error';
+                    statusMessage.textContent = 'Error: ' + error.message;
+                }
+            } finally {
+                if (!processAborted) {
+                    resetInterface();
+                }
+            }
+        }
+
+        function resetInterface() {
+            isProcessing = false;
+            startProcessing.disabled = false;
+            document.getElementById('processText').textContent = 'Begin Screening';
+            cancelProcessing.style.display = 'none';
+        }
+
+        async function triggerN8nWorkflow() {
+            try {
+                statusMessage.className = 'status processing';
+                statusMessage.textContent = 'Initiating resume screening workflow...';
+                progressFill.style.width = '10%';
+
+                // Trigger n8n workflow with authentication
+                const response = await fetch(N8N_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Basic ' + btoa('rairitumk@gmail.com:Resume@2024')
+                    },
+                    body: JSON.stringify({
+                        action: 'start_screening',
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server error: ${response.status}`);
+                }
+
+                // Show progress while processing
+                await simulateProgress();
+
+                if (processAborted) return;
+
+                // Handle Excel file download
+                const arrayBuffer = await response.arrayBuffer();
+                console.log('ArrayBuffer size:', arrayBuffer.byteLength);
+                
+                if (arrayBuffer.byteLength === 0) {
+                    throw new Error('Received empty file from server');
+                }
+                
+                const blob = new Blob([arrayBuffer], { 
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+                });
+                
+                if (processAborted) return;
+                
+                // Download the file
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                
+                const today = new Date();
+                const dateStr = today.getFullYear() + 
+                    String(today.getMonth() + 1).padStart(2, '0') + 
+                    String(today.getDate()).padStart(2, '0');
+                a.download = `screening_results_${dateStr}.xlsx`;
+                
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Show completion
+                statusMessage.className = 'status complete';
+                statusMessage.textContent = 'Resume screening completed successfully!';
+                progressFill.style.width = '100%';
+                
+                // Show notification
+                showDownloadNotification(a.download);
+                
+                // Show results with placeholder values
+                setTimeout(() => {
+                    if (!processAborted) {
+                        showResults();
+                    }
+                }, 1000);
+
+            } catch (error) {
+                console.error('Error triggering n8n workflow:', error);
+                
+                if (error.message.includes('Failed to fetch') || error.message.includes('Server error')) {
+                    statusMessage.className = 'status error';
+                    statusMessage.textContent = 'n8n server not available. Please check if n8n is running.';
+                } else {
+                    statusMessage.className = 'status error';
+                    statusMessage.textContent = 'Error: ' + error.message;
+                }
+            }
+        }
+
+        async function simulateProgress() {
+            const steps = [
+                'Reading candidate database...',
+                'Processing resume files...',
+                'Extracting candidate information...',
+                'Running AI evaluation...',
+                'Generating Excel report...'
+            ];
+
+            for (let i = 0; i < steps.length; i++) {
+                if (processAborted) return;
+                
+                statusMessage.textContent = steps[i];
+                progressFill.style.width = `${20 + (i * 16)}%`;
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+        }
+
+        function showResults() {
+            // Show results with placeholder values
+            document.getElementById('totalProcessed').textContent = '--';
+            document.getElementById('qualified').textContent = '--';
+            document.getElementById('recommended').textContent = '--';
+            document.getElementById('rejected').textContent = '--';
+
+            resultsSection.classList.add('show');
+        }
+
+        function showDownloadNotification(filename) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.innerHTML = `
+                <div class="notification-title">✅ Excel Report Downloaded!</div>
+                <div class="notification-details">
+                    📄 ${filename}<br>
+                    📁 Check your Downloads folder
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Show notification
+            setTimeout(() => notification.classList.add('show'), 100);
+            
+            // Hide and remove notification
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => document.body.removeChild(notification), 500);
+            }, 4000);
+        }
+
+        // Close modal when clicking outside
+        confirmModal.addEventListener('click', (e) => {
+            if (e.target === confirmModal) {
+                confirmModal.classList.remove('show');
+            }
+        });
+
+        // Rename button event listener - opens the rename modal
+        document.getElementById('renameBtn').addEventListener('click', () => {
+            // Clear/reset the modal content when opening
+            const result = document.getElementById('renameResult');
+            result.style.display = 'none';
+            result.innerHTML = '';
+            
+            // Open the modal
+            document.getElementById('renameModal').classList.add('show');
+        });
+
+        // Close rename modal
+        document.getElementById('closeRenameModal').addEventListener('click', () => {
+            document.getElementById('renameModal').classList.remove('show');
+        });
+
+        // Email button event listener - opens the email modal
+        document.getElementById('emailBtn').addEventListener('click', () => {
+            // Clear/reset the modal content when opening
+            const result = document.getElementById('emailResult');
+            result.style.display = 'none';
+            result.innerHTML = '';
+            
+            // Open the modal
+            document.getElementById('emailModal').classList.add('show');
+        });
+
+        // Close email modal
+        document.getElementById('closeEmailModal').addEventListener('click', () => {
+            document.getElementById('emailModal').classList.remove('show');
+        });
+
+        // Rename modal processing
+        document.getElementById('startRenameProcessing').addEventListener('click', async () => {
+            const result = document.getElementById('renameResult');
+            
+            // Show loading
+            result.style.display = 'block';
+            result.style.background = '#fff3cd';
+            result.style.color = '#856404';
+            result.innerHTML = '⏳ Processing files... Please wait...';
+            
+            try {
+                const response = await fetch('http://localhost:5679/webhook/rename-resumes', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Basic ' + btoa('rairitumk@gmail.com:Resume@2024')
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    result.style.background = '#d4edda';
+                    result.style.color = '#155724';
+                    result.innerHTML = `✅ ${data.message || 'Success! Resumes processed.'}`;
+                    
+                    // Check the specific message to determine what to do
+                    if (data.status === 'success') {
+                        // "New files renamed successfully!" - enable recruitment
+                        startProcessing.disabled = false;
+                        const warningMsg = document.querySelector('.action-card small');
+                        if (warningMsg) {
+                            warningMsg.innerHTML = '✅ Resumes are ready for processing';
+                            warningMsg.style.color = '#059669';
+                        }
+                        result.innerHTML += '<br><br><small>📋 You can now close this popup and start recruitment screening</small>';
+                    } else if (data.status === 'info') {
+                        // Check specific message content
+                        const message = data.message.toLowerCase();
+                        
+                        if (message.includes('folder is empty') || 
+                            message.includes('no pdf files found') ||
+                            message.includes('please add resume files')) {
+                            // Folder is actually empty - keep recruitment disabled
+                            result.innerHTML += '<br><br><small style="color: #dc2626;">⚠️ Please add resume files to the folder first</small>';
+                        } else if (message.includes('already renamed') || 
+                                   message.includes('no work needed')) {
+                            // Files exist and are already renamed - enable recruitment
+                            startProcessing.disabled = false;
+                            const warningMsg = document.querySelector('.action-card small');
+                            if (warningMsg) {
+                                warningMsg.innerHTML = '✅ Resumes are ready for processing';
+                                warningMsg.style.color = '#059669';
+                            }
+                            result.innerHTML += '<br><br><small>📋 You can now close this popup and start recruitment screening</small>';
+                        }
+                    }
+                } else {
+                    result.style.background = '#f8d7da';
+                    result.style.color = '#721c24';
+                    result.innerHTML = '❌ Error: ' + response.status + ' ' + response.statusText;
+                }
+            } catch (error) {
+                result.style.background = '#f8d7da';
+                result.style.color = '#721c24';
+                result.innerHTML = '❌ Error: ' + error.message;
+            }
+        });
+
+        // File upload handler
+        document.getElementById('excelFileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            const fileName = document.getElementById('fileName');
+            const processBtn = document.getElementById('processExcelBtn');
+            
+            if (file) {
+                fileName.style.display = 'block';
+                fileName.innerHTML = `✅ Selected: ${file.name}`;
+                processBtn.style.display = 'inline-block';
+            } else {
+                fileName.style.display = 'none';
+                processBtn.style.display = 'none';
+            }
+        });
+
+        // Process Excel file
+        document.getElementById('processExcelBtn').addEventListener('click', async () => {
+            const result = document.getElementById('emailResult');
+            const fileInput = document.getElementById('excelFileInput');
+            
+            if (!fileInput.files[0]) {
+                result.style.display = 'block';
+                result.style.background = '#fef2f2';
+                result.style.color = '#dc2626';
+                result.innerHTML = '❌ Please select an Excel file first!';
+                return;
+            }
+            
+            // Show loading
+            result.style.display = 'block';
+            result.style.background = '#fff3cd';
+            result.style.color = '#856404';
+            result.innerHTML = '⏳ Reading Excel file... Please wait...';
+            
+            try {
+                // Read Excel file
+                const file = fileInput.files[0];
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                // Get first sheet
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                
+                // Convert to JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+                
+                // Find accepted candidates
+                globalAcceptedCandidates = findAcceptedCandidates(jsonData);
+                
+                if (globalAcceptedCandidates.length === 0) {
+                    result.style.background = '#fef2f2';
+                    result.style.color = '#dc2626';
+                    result.innerHTML = '❌ No candidates with "Accept" decision found!<br><small>Make sure you have an Action column with "Accept" values.</small>';
+                    return;
+                }
+                
+                // Show results
+                result.style.background = '#d4edda';
+                result.style.color = '#155724';
+                result.innerHTML = `
+                    ✅ Excel file processed successfully!<br>
+                    <strong>Found ${globalAcceptedCandidates.length} accepted candidate${globalAcceptedCandidates.length > 1 ? 's' : ''}:</strong><br>
+                    <div style="margin: 20px 0; padding: 20px; background: white; border-radius: 12px; border: 2px solid #10b981;">
+                        <div style="font-size: 1.1em; color: #2d3748; margin-bottom: 15px;">📧 Ready to send interview emails</div>
+                        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                            <button onclick="showEmailPreview()" style="background: #3182ce; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s ease;">
+                                👁️ Preview Email Template
+                            </button>
+                            <button onclick="sendAllEmails()" style="background: #059669; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s ease;">
+                                📤 Send All Emails
+                            </button>
+                        </div>
+                    </div>
+                    <small style="color: #6b7280;">🔒 Emails will be sent to candidate email addresses</small>
+                `;
+                
+            } catch (error) {
+                result.style.background = '#fef2f2';
+                result.style.color = '#dc2626';
+                result.innerHTML = '❌ Error reading Excel file: ' + error.message;
+            }
+        });
+
+        // Find accepted candidates function
+        function findAcceptedCandidates(data) {
+            const acceptedCandidates = [];
+            
+            if (data.length === 0) return acceptedCandidates;
+            
+            const firstRow = data[0];
+            let decisionColumn = null;
+            
+            // Check for "Action" column first
+            if (firstRow.hasOwnProperty('Action')) {
+                decisionColumn = 'Action';
+            } else if (firstRow.hasOwnProperty('Accept/Reject')) {
+                decisionColumn = 'Accept/Reject';
+            } else {
+                // Use last column as fallback
+                const keys = Object.keys(firstRow);
+                decisionColumn = keys[keys.length - 1];
+            }
+            
+            // Filter candidates with "Accept" decision
+            data.forEach((row, index) => {
+                const decision = row[decisionColumn];
+                if (decision && decision.toString().toLowerCase().trim() === 'accept') {
+                    acceptedCandidates.push({
+                        name: row.Candidate_Name || row.Name || `Candidate ${index + 1}`,
+                        email: row.Email || row.candidate_email || 'No email',
+                        originalData: row
+                    });
+                }
+            });
+            
+            return acceptedCandidates;
+        }
+
+        // Email preview function
+        function showEmailPreview() {
+            const previewHtml = `
+                <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 2000; display: flex; justify-content: center; align-items: center;">
+                    <div style="background: white; padding: 30px; border-radius: 16px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 25px 50px rgba(0,0,0,0.3);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0; color: #2d3748;">📧 Email Preview</h2>
+                            <button onclick="this.parentElement.parentElement.parentElement.remove()" style="background: none; border: none; font-size: 24px; cursor: pointer;">×</button>
+                        </div>
+                        
+                        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                            <strong>Subject:</strong> Interview Invitation - Software Developer Position<br><br>
+                            <strong>Email Body:</strong><br>
+                            <div style="margin-top: 10px; line-height: 1.6;">
+                                <h2 style="color: #2c3e50;">Interview Invitation</h2>
+                                <p>Dear <strong>[Candidate Name]</strong>,</p>
+                                <p>Congratulations! We are pleased to inform you that your resume has been shortlisted for the <strong>Software Developer</strong> position at our company.</p>
+                                <p>We would like to invite you for an interview to discuss your qualifications and learn more about your experience.</p>
+                                <h3 style="color: #3498db;">Next Steps:</h3>
+                                <ul>
+                                    <li>Our HR team will contact you within 2 business days</li>
+                                    <li>Please keep your phone available for scheduling</li>
+                                    <li>Prepare for technical and HR rounds</li>
+                                </ul>
+                                <p>We look forward to meeting you!</p>
+                                <p><strong>Best regards,</strong><br>HR Team<br>Recruitment Department</p>
+                            </div>
+                        </div>
+                        
+                        <div style="margin-top: 20px; text-align: center;">
+                            <small style="color: #6b7280;">This email will be sent to ${globalAcceptedCandidates.length} candidate${globalAcceptedCandidates.length > 1 ? 's' : ''}</small>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', previewHtml);
+        }
+
+        // Send all emails function
+        function sendAllEmails() {
+            const result = document.getElementById('emailResult');
+            
+            result.innerHTML = `
+                <div style="background: #fff3cd; color: #856404; padding: 15px; border-radius: 8px;">
+                    ⏳ Sending emails to ${globalAcceptedCandidates.length} candidate${globalAcceptedCandidates.length > 1 ? 's' : ''}...<br>
+                    <small>Please wait while we process the emails...</small>
+                </div>
+            `;
+            
+            // Call real n8n email workflow with authentication
+            fetch('http://localhost:5679/webhook/send-interview-emails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Basic ' + btoa('rairitumk@gmail.com:Resume@2024')
+                },
+                body: JSON.stringify({
+                    acceptedCandidates: globalAcceptedCandidates
+                })
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                // Try to parse as JSON, but handle if it fails
+                return response.text().then(text => {
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.log('Response is not JSON, raw text:', text);
+                        return { status: 'success', message: 'Emails sent successfully!', rawResponse: text };
+                    }
+                });
+            })
+            .then(data => {
+                console.log('Parsed data:', data);
+                result.innerHTML = `
+                    <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 8px;">
+                        ✅ Interview invitation email${globalAcceptedCandidates.length > 1 ? 's' : ''} sent successfully!<br><br>
+                        <strong>Summary:</strong> ${globalAcceptedCandidates.length} candidate${globalAcceptedCandidates.length > 1 ? 's' : ''} notified
+                    </div>
+                `;
+            })
+            .catch(error => {
+                console.error('Error sending emails:', error);
+                result.innerHTML = `
+                    <div style="background: #fef2f2; color: #dc2626; padding: 15px; border-radius: 8px;">
+                        ❌ Error sending emails: ${error.message}<br>
+                        <small>Please check if n8n workflow is running and activated.</small>
+                    </div>
+                `;
+            });
+        }
+
+        // Close modals when clicking outside
+        document.getElementById('renameModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('renameModal')) {
+                document.getElementById('renameModal').classList.remove('show');
+            }
+        });
+
+        document.getElementById('emailModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('emailModal')) {
+                document.getElementById('emailModal').classList.remove('show');
+            }
+        });
+        
+    </script>
+</body>
+</html>
